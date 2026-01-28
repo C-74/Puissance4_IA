@@ -1,69 +1,752 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Puissance 4</title>
+    <title>Puissance 4 - Humain vs IA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    animation: {
+                        'pulse-slow': 'pulse 1.5s infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .cell {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: radial-gradient(circle at center, #0f172a 0%, #1e293b 100%);
+            box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(255, 255, 255, 0.1);
+        }
+
+        @media (min-width: 768px) {
+            .cell {
+                width: 70px;
+                height: 70px;
+            }
+        }
+
+        .cell:hover:not(.red):not(.yellow) {
+            background: radial-gradient(circle at center, #1e3a5f 0%, #2a4a6c 100%);
+            transform: scale(1.05);
+        }
+
+        .cell.red {
+            background: radial-gradient(circle at 30% 30%, #f87171, #dc2626);
+            box-shadow: inset 0 -4px 8px rgba(0, 0, 0, 0.3), 0 4px 15px rgba(220, 38, 38, 0.5);
+            animation: drop 0.4s ease-out;
+        }
+
+        .cell.yellow {
+            background: radial-gradient(circle at 30% 30%, #fde047, #eab308);
+            box-shadow: inset 0 -4px 8px rgba(0, 0, 0, 0.3), 0 4px 15px rgba(234, 179, 8, 0.5);
+            animation: drop 0.4s ease-out;
+        }
+
+        .cell.winning {
+            animation: winPulse 0.6s ease-in-out infinite;
+        }
+
+        .token-preview {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+        }
+
+        .token-preview.red {
+            background: radial-gradient(circle at 30% 30%, #f87171, #dc2626);
+        }
+
+        .token-preview.yellow {
+            background: radial-gradient(circle at 30% 30%, #fde047, #eab308);
+        }
+
+        @keyframes drop {
+            0% { transform: translateY(-300px); opacity: 0; }
+            60% { transform: translateY(10px); }
+            80% { transform: translateY(-5px); }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes winPulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(255, 255, 255, 0.8); }
+            50% { transform: scale(1.1); box-shadow: 0 0 40px rgba(255, 255, 255, 1); }
+        }
+
+        @keyframes scaleIn {
+            from { transform: scale(0.5); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .modal-content {
+            animation: scaleIn 0.4s ease;
+        }
+
+        .board-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+        }
+
+        @media (min-width: 768px) {
+            .board-grid {
+                gap: 10px;
+            }
+        }
+    </style>
 </head>
-<body>
-    <h1>Puissance 4</h1>
-    <div id="game-board">
-        <table id="board">
-            <tr>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-            </tr>
-            <tr>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-            </tr>
-            <tr>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-            </tr>
-            <tr>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-            </tr>
-            <tr>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-            </tr>
-            <tr>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td></td>
-            </tr>
-        </table>
+<body class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 flex flex-col items-center justify-center p-4 md:p-8">
+    
+    <!-- Container principal -->
+    <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-6 md:p-8 shadow-2xl border border-white/10 max-w-2xl w-full">
+        
+        <!-- Titre -->
+        <h1 class="text-3xl md:text-4xl font-bold text-center mb-6 bg-gradient-to-r from-red-500 to-yellow-500 bg-clip-text text-transparent">
+            🎮 Puissance 4
+        </h1>
+
+        <!-- Barre de statut -->
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6 p-4 bg-black/30 rounded-xl">
+            <!-- Joueur Humain -->
+            <div class="flex items-center gap-3">
+                <div class="token-preview red shadow-lg"></div>
+                <span class="text-white font-medium">Joueur</span>
+            </div>
+            
+            <!-- Indicateur de tour -->
+            <div id="turn-indicator" class="px-6 py-2 rounded-full font-bold text-white animate-pulse-slow bg-gradient-to-r from-red-500 to-red-600">
+                Tour du Joueur
+            </div>
+            
+            <!-- IA -->
+            <div class="flex items-center gap-3">
+                <span class="text-white font-medium">🤖 IA</span>
+                <div class="token-preview yellow shadow-lg"></div>
+            </div>
+        </div>
+
+        <!-- Indicateurs de colonne -->
+        <div id="column-indicators" class="flex justify-center gap-2 mb-2 h-6">
+            <div class="column-indicator w-[60px] md:w-[70px] flex items-center justify-center opacity-0 transition-opacity duration-200" data-col="0">
+                <div class="w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[12px] border-t-red-500 animate-bounce"></div>
+            </div>
+            <div class="column-indicator w-[60px] md:w-[70px] flex items-center justify-center opacity-0 transition-opacity duration-200" data-col="1">
+                <div class="w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[12px] border-t-red-500 animate-bounce"></div>
+            </div>
+            <div class="column-indicator w-[60px] md:w-[70px] flex items-center justify-center opacity-0 transition-opacity duration-200" data-col="2">
+                <div class="w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[12px] border-t-red-500 animate-bounce"></div>
+            </div>
+            <div class="column-indicator w-[60px] md:w-[70px] flex items-center justify-center opacity-0 transition-opacity duration-200" data-col="3">
+                <div class="w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[12px] border-t-red-500 animate-bounce"></div>
+            </div>
+            <div class="column-indicator w-[60px] md:w-[70px] flex items-center justify-center opacity-0 transition-opacity duration-200" data-col="4">
+                <div class="w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[12px] border-t-red-500 animate-bounce"></div>
+            </div>
+            <div class="column-indicator w-[60px] md:w-[70px] flex items-center justify-center opacity-0 transition-opacity duration-200" data-col="5">
+                <div class="w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[12px] border-t-red-500 animate-bounce"></div>
+            </div>
+            <div class="column-indicator w-[60px] md:w-[70px] flex items-center justify-center opacity-0 transition-opacity duration-200" data-col="6">
+                <div class="w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[12px] border-t-red-500 animate-bounce"></div>
+            </div>
+        </div>
+
+        <!-- Plateau de jeu -->
+        <div class="flex justify-center">
+            <div id="game-board" class="bg-gradient-to-b from-blue-700 to-blue-900 p-4 md:p-5 rounded-2xl shadow-xl">
+                <div id="board" class="board-grid">
+                    <!-- Les cellules seront générées par JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Indicateur de réflexion IA -->
+        <div id="thinking-indicator" class="hidden items-center justify-center gap-3 mt-4 py-3 px-6 bg-yellow-500/20 rounded-full mx-auto w-fit">
+            <span class="text-yellow-300">🤖 L'IA réfléchit</span>
+            <div class="flex gap-1">
+                <span class="w-2 h-2 bg-yellow-400 rounded-full animate-bounce" style="animation-delay: 0s"></span>
+                <span class="w-2 h-2 bg-yellow-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
+                <span class="w-2 h-2 bg-yellow-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></span>
+            </div>
+        </div>
+
+        <!-- Boutons de contrôle -->
+        <div class="flex justify-center gap-4 mt-6">
+            <button id="btn-reset" onclick="resetGame()" class="px-6 py-3 bg-gradient-to-r from-red-500 to-yellow-500 text-white font-bold rounded-full shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                🔄 Nouvelle Partie
+            </button>
+            <button id="btn-undo" onclick="undoMove()" class="px-6 py-3 bg-white/10 text-white font-bold rounded-full border-2 border-white/30 hover:bg-white/20 hover:-translate-y-1 transition-all duration-300">
+                ↩️ Annuler
+            </button>
+        </div>
+
+        <!-- Tableau des scores -->
+        <div class="flex justify-center gap-8 md:gap-16 mt-6 p-4 bg-black/20 rounded-xl">
+            <div class="text-center">
+                <h3 class="text-white/70 text-sm mb-1">🏆 Joueur</h3>
+                <div id="player-score" class="text-3xl font-bold text-red-400">0</div>
+            </div>
+            <div class="text-center">
+                <h3 class="text-white/70 text-sm mb-1">🤝 Égalités</h3>
+                <div id="draw-score" class="text-3xl font-bold text-white">0</div>
+            </div>
+            <div class="text-center">
+                <h3 class="text-white/70 text-sm mb-1">🤖 IA</h3>
+                <div id="ai-score" class="text-3xl font-bold text-yellow-400">0</div>
+            </div>
+        </div>
     </div>
+
+    <!-- Modal de fin de partie -->
+    <div id="game-modal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50">
+        <div class="modal-content bg-gradient-to-br from-slate-800 to-slate-900 p-8 md:p-10 rounded-3xl text-center shadow-2xl border border-white/10 mx-4">
+            <h2 id="modal-title" class="text-3xl md:text-4xl font-bold mb-4 bg-gradient-to-r from-red-500 to-yellow-500 bg-clip-text text-transparent">
+                Partie terminée !
+            </h2>
+            <p id="modal-message" class="text-lg text-white/90 mb-8">
+                Le joueur a gagné !
+            </p>
+            <button onclick="closeModalAndReset()" class="px-8 py-3 bg-gradient-to-r from-red-500 to-yellow-500 text-white font-bold rounded-full shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                🎮 Rejouer
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // CONFIGURATION DU JEU
+        // ============================================================
+        const ROWS = 6;
+        const COLS = 7;
+        const EMPTY = 0;
+        const PLAYER = 1;  // Rouge - Joueur Humain
+        const AI = 2;      // Jaune - Intelligence Artificielle
+
+        // ============================================================
+        // ÉTAT DU JEU
+        // ============================================================
+        let board = [];           // Plateau de jeu (tableau 2D)
+        let currentPlayer = PLAYER;
+        let gameOver = false;
+        let moveHistory = [];     // Historique des coups pour annulation
+        let scores = { player: 0, ai: 0, draw: 0 };
+
+        // ============================================================
+        // INITIALISATION
+        // ============================================================
+        
+        /**
+         * Initialise le plateau de jeu avec des cellules vides
+         */
+        function initBoard() {
+            board = [];
+            for (let row = 0; row < ROWS; row++) {
+                board[row] = [];
+                for (let col = 0; col < COLS; col++) {
+                    board[row][col] = EMPTY;
+                }
+            }
+        }
+
+        /**
+         * Crée les éléments HTML du plateau
+         */
+        function createBoardHTML() {
+            const boardElement = document.getElementById('board');
+            boardElement.innerHTML = '';
+            
+            for (let row = 0; row < ROWS; row++) {
+                for (let col = 0; col < COLS; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    cell.addEventListener('click', () => handleCellClick(col));
+                    cell.addEventListener('mouseenter', () => showColumnIndicator(col));
+                    cell.addEventListener('mouseleave', () => hideColumnIndicators());
+                    boardElement.appendChild(cell);
+                }
+            }
+        }
+
+        // ============================================================
+        // INTERFACE UTILISATEUR
+        // ============================================================
+
+        /**
+         * Affiche l'indicateur de colonne au survol
+         */
+        function showColumnIndicator(col) {
+            if (gameOver || currentPlayer !== PLAYER) return;
+            hideColumnIndicators();
+            const indicator = document.querySelector(`.column-indicator[data-col="${col}"]`);
+            if (indicator && getEmptyRow(col) !== -1) {
+                indicator.classList.remove('opacity-0');
+                indicator.classList.add('opacity-100');
+            }
+        }
+
+        /**
+         * Cache tous les indicateurs de colonne
+         */
+        function hideColumnIndicators() {
+            document.querySelectorAll('.column-indicator').forEach(ind => {
+                ind.classList.remove('opacity-100');
+                ind.classList.add('opacity-0');
+            });
+        }
+
+        /**
+         * Met à jour l'affichage visuel du plateau
+         */
+        function updateBoardDisplay() {
+            for (let row = 0; row < ROWS; row++) {
+                for (let col = 0; col < COLS; col++) {
+                    const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+                    cell.classList.remove('red', 'yellow', 'winning');
+                    if (board[row][col] === PLAYER) {
+                        cell.classList.add('red');
+                    } else if (board[row][col] === AI) {
+                        cell.classList.add('yellow');
+                    }
+                }
+            }
+        }
+
+        /**
+         * Met à jour l'indicateur de tour
+         */
+        function updateTurnIndicator() {
+            const indicator = document.getElementById('turn-indicator');
+            if (currentPlayer === PLAYER) {
+                indicator.textContent = 'Tour du Joueur';
+                indicator.className = 'px-6 py-2 rounded-full font-bold text-white animate-pulse bg-gradient-to-r from-red-500 to-red-600';
+            } else {
+                indicator.textContent = 'Tour de l\'IA';
+                indicator.className = 'px-6 py-2 rounded-full font-bold text-white animate-pulse bg-gradient-to-r from-yellow-500 to-yellow-600';
+            }
+        }
+
+        /**
+         * Affiche/masque l'indicateur de réflexion de l'IA
+         */
+        function showThinking(show) {
+            const indicator = document.getElementById('thinking-indicator');
+            if (show) {
+                indicator.classList.remove('hidden');
+                indicator.classList.add('flex');
+            } else {
+                indicator.classList.add('hidden');
+                indicator.classList.remove('flex');
+            }
+        }
+
+        /**
+         * Met à jour l'affichage des scores
+         */
+        function updateScores() {
+            document.getElementById('player-score').textContent = scores.player;
+            document.getElementById('ai-score').textContent = scores.ai;
+            document.getElementById('draw-score').textContent = scores.draw;
+        }
+
+        // ============================================================
+        // LOGIQUE DU JEU
+        // ============================================================
+
+        /**
+         * Trouve la première ligne vide (plus basse) dans une colonne
+         * @param {number} col - Index de la colonne
+         * @returns {number} Index de la ligne, ou -1 si colonne pleine
+         */
+        function getEmptyRow(col) {
+            for (let row = ROWS - 1; row >= 0; row--) {
+                if (board[row][col] === EMPTY) {
+                    return row;
+                }
+            }
+            return -1;
+        }
+
+        /**
+         * Joue un coup dans une colonne
+         * @param {number} col - Index de la colonne
+         * @param {number} player - PLAYER ou AI
+         * @returns {boolean} true si le coup a été joué
+         */
+        function makeMove(col, player) {
+            const row = getEmptyRow(col);
+            if (row === -1) return false;
+            
+            board[row][col] = player;
+            moveHistory.push({ row, col, player });
+            return true;
+        }
+
+        /**
+         * Gère le clic sur une cellule (coup du joueur humain)
+         */
+        function handleCellClick(col) {
+            if (gameOver || currentPlayer !== PLAYER) return;
+            
+            if (makeMove(col, PLAYER)) {
+                updateBoardDisplay();
+                
+                if (checkWin(PLAYER)) {
+                    endGame('player');
+                    return;
+                }
+                
+                if (isBoardFull()) {
+                    endGame('draw');
+                    return;
+                }
+                
+                // Passe au tour de l'IA
+                currentPlayer = AI;
+                updateTurnIndicator();
+                hideColumnIndicators();
+                
+                // ============================================================
+                // 🤖 POINT D'INTÉGRATION DE L'IA
+                // ============================================================
+                // Appeler votre fonction d'IA ici
+                // Exemple: setTimeout(() => aiPlay(), 500);
+                // 
+                // Votre fonction d'IA doit :
+                // 1. Calculer le meilleur coup (colonne)
+                // 2. Appeler playAIMove(colonne) pour jouer le coup
+                // ============================================================
+                
+                // Simulation temporaire - À REMPLACER PAR VOTRE IA
+                showThinking(true);
+                setTimeout(() => {
+                    // Remplacez cette ligne par votre appel d'IA
+                    const aiColumn = getRandomValidColumn(); // Coup aléatoire temporaire
+                    playAIMove(aiColumn);
+                }, 800);
+            }
+        }
+
+        /**
+         * Joue le coup de l'IA
+         * @param {number} col - Colonne choisie par l'IA
+         */
+        function playAIMove(col) {
+            showThinking(false);
+            
+            if (gameOver || col === null || col === undefined) return;
+            
+            if (makeMove(col, AI)) {
+                updateBoardDisplay();
+                
+                if (checkWin(AI)) {
+                    endGame('ai');
+                    return;
+                }
+                
+                if (isBoardFull()) {
+                    endGame('draw');
+                    return;
+                }
+                
+                currentPlayer = PLAYER;
+                updateTurnIndicator();
+            }
+        }
+
+        /**
+         * Coup aléatoire temporaire (à remplacer par votre IA)
+         */
+        function getRandomValidColumn() {
+            const validCols = [];
+            for (let col = 0; col < COLS; col++) {
+                if (getEmptyRow(col) !== -1) {
+                    validCols.push(col);
+                }
+            }
+            return validCols[Math.floor(Math.random() * validCols.length)];
+        }
+
+        /**
+         * Annule le dernier coup (et celui de l'IA si nécessaire)
+         */
+        function undoMove() {
+            if (moveHistory.length === 0 || gameOver) return;
+            
+            // Annule le dernier coup
+            if (moveHistory.length > 0) {
+                const lastMove = moveHistory.pop();
+                board[lastMove.row][lastMove.col] = EMPTY;
+            }
+            
+            // Si c'était le tour du joueur, annule aussi le coup de l'IA
+            if (moveHistory.length > 0 && moveHistory[moveHistory.length - 1].player === PLAYER) {
+                const playerMove = moveHistory.pop();
+                board[playerMove.row][playerMove.col] = EMPTY;
+            }
+            
+            currentPlayer = PLAYER;
+            updateBoardDisplay();
+            updateTurnIndicator();
+        }
+
+        // ============================================================
+        // VÉRIFICATION DE VICTOIRE
+        // ============================================================
+
+        /**
+         * Vérifie si un joueur a gagné
+         * @param {number} player - PLAYER ou AI
+         * @returns {boolean} true si victoire
+         */
+        function checkWin(player) {
+            // Horizontales
+            for (let row = 0; row < ROWS; row++) {
+                for (let col = 0; col < COLS - 3; col++) {
+                    if (board[row][col] === player &&
+                        board[row][col+1] === player &&
+                        board[row][col+2] === player &&
+                        board[row][col+3] === player) {
+                        return true;
+                    }
+                }
+            }
+            
+            // Verticales
+            for (let col = 0; col < COLS; col++) {
+                for (let row = 0; row < ROWS - 3; row++) {
+                    if (board[row][col] === player &&
+                        board[row+1][col] === player &&
+                        board[row+2][col] === player &&
+                        board[row+3][col] === player) {
+                        return true;
+                    }
+                }
+            }
+            
+            // Diagonales descendantes
+            for (let row = 0; row < ROWS - 3; row++) {
+                for (let col = 0; col < COLS - 3; col++) {
+                    if (board[row][col] === player &&
+                        board[row+1][col+1] === player &&
+                        board[row+2][col+2] === player &&
+                        board[row+3][col+3] === player) {
+                        return true;
+                    }
+                }
+            }
+            
+            // Diagonales montantes
+            for (let row = 3; row < ROWS; row++) {
+                for (let col = 0; col < COLS - 3; col++) {
+                    if (board[row][col] === player &&
+                        board[row-1][col+1] === player &&
+                        board[row-2][col+2] === player &&
+                        board[row-3][col+3] === player) {
+                        return true;
+                    }
+                }
+            }
+            
+            return false;
+        }
+
+        /**
+         * Met en évidence les jetons gagnants
+         */
+        function highlightWinningCells(player) {
+            // Horizontales
+            for (let row = 0; row < ROWS; row++) {
+                for (let col = 0; col < COLS - 3; col++) {
+                    if (board[row][col] === player &&
+                        board[row][col+1] === player &&
+                        board[row][col+2] === player &&
+                        board[row][col+3] === player) {
+                        for (let i = 0; i < 4; i++) {
+                            document.querySelector(`.cell[data-row="${row}"][data-col="${col+i}"]`).classList.add('winning');
+                        }
+                        return;
+                    }
+                }
+            }
+            
+            // Verticales
+            for (let col = 0; col < COLS; col++) {
+                for (let row = 0; row < ROWS - 3; row++) {
+                    if (board[row][col] === player &&
+                        board[row+1][col] === player &&
+                        board[row+2][col] === player &&
+                        board[row+3][col] === player) {
+                        for (let i = 0; i < 4; i++) {
+                            document.querySelector(`.cell[data-row="${row+i}"][data-col="${col}"]`).classList.add('winning');
+                        }
+                        return;
+                    }
+                }
+            }
+            
+            // Diagonales descendantes
+            for (let row = 0; row < ROWS - 3; row++) {
+                for (let col = 0; col < COLS - 3; col++) {
+                    if (board[row][col] === player &&
+                        board[row+1][col+1] === player &&
+                        board[row+2][col+2] === player &&
+                        board[row+3][col+3] === player) {
+                        for (let i = 0; i < 4; i++) {
+                            document.querySelector(`.cell[data-row="${row+i}"][data-col="${col+i}"]`).classList.add('winning');
+                        }
+                        return;
+                    }
+                }
+            }
+            
+            // Diagonales montantes
+            for (let row = 3; row < ROWS; row++) {
+                for (let col = 0; col < COLS - 3; col++) {
+                    if (board[row][col] === player &&
+                        board[row-1][col+1] === player &&
+                        board[row-2][col+2] === player &&
+                        board[row-3][col+3] === player) {
+                        for (let i = 0; i < 4; i++) {
+                            document.querySelector(`.cell[data-row="${row-i}"][data-col="${col+i}"]`).classList.add('winning');
+                        }
+                        return;
+                    }
+                }
+            }
+        }
+
+        /**
+         * Vérifie si le plateau est plein
+         */
+        function isBoardFull() {
+            for (let col = 0; col < COLS; col++) {
+                if (board[0][col] === EMPTY) return false;
+            }
+            return true;
+        }
+
+        // ============================================================
+        // FIN DE PARTIE
+        // ============================================================
+
+        /**
+         * Gère la fin de partie
+         * @param {string} result - 'player', 'ai', ou 'draw'
+         */
+        function endGame(result) {
+            gameOver = true;
+            showThinking(false);
+            
+            const modal = document.getElementById('game-modal');
+            const title = document.getElementById('modal-title');
+            const message = document.getElementById('modal-message');
+            
+            if (result === 'player') {
+                scores.player++;
+                title.textContent = '🎉 Victoire !';
+                message.textContent = 'Félicitations, vous avez battu l\'IA !';
+                highlightWinningCells(PLAYER);
+            } else if (result === 'ai') {
+                scores.ai++;
+                title.textContent = '🤖 Défaite';
+                message.textContent = 'L\'Intelligence Artificielle a gagné !';
+                highlightWinningCells(AI);
+            } else {
+                scores.draw++;
+                title.textContent = '🤝 Égalité';
+                message.textContent = 'Match nul ! La partie se termine sans vainqueur.';
+            }
+            
+            updateScores();
+            
+            setTimeout(() => {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }, 1000);
+        }
+
+        /**
+         * Réinitialise le jeu
+         */
+        function resetGame() {
+            initBoard();
+            createBoardHTML();
+            currentPlayer = PLAYER;
+            gameOver = false;
+            moveHistory = [];
+            updateTurnIndicator();
+            showThinking(false);
+        }
+
+        /**
+         * Ferme le modal et réinitialise le jeu
+         */
+        function closeModalAndReset() {
+            const modal = document.getElementById('game-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            resetGame();
+        }
+
+        // ============================================================
+        // API POUR L'IA
+        // ============================================================
+
+        /**
+         * Retourne l'état actuel du plateau
+         * @returns {number[][]} Copie du plateau (0=vide, 1=joueur, 2=IA)
+         */
+        function getBoard() {
+            return board.map(row => [...row]);
+        }
+
+        /**
+         * Retourne les colonnes jouables
+         * @returns {number[]} Liste des index de colonnes valides
+         */
+        function getValidColumns() {
+            const validCols = [];
+            for (let col = 0; col < COLS; col++) {
+                if (getEmptyRow(col) !== -1) {
+                    validCols.push(col);
+                }
+            }
+            return validCols;
+        }
+
+        /**
+         * Retourne le joueur courant
+         * @returns {number} PLAYER (1) ou AI (2)
+         */
+        function getCurrentPlayer() {
+            return currentPlayer;
+        }
+
+        /**
+         * Vérifie si la partie est terminée
+         * @returns {boolean}
+         */
+        function isGameOver() {
+            return gameOver;
+        }
+
+        // ============================================================
+        // INITIALISATION AU CHARGEMENT
+        // ============================================================
+        window.onload = function() {
+            initBoard();
+            createBoardHTML();
+            updateScores();
+        };
+    </script>
 </body>
 </html>
