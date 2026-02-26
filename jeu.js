@@ -272,6 +272,15 @@ function getValidColumns() {
     return cols;
 }
 
+function RandomMove() {
+    if (gameOver) return;
+    const validColumns = getValidColumns();
+    if (validColumns.length === 0) return;
+    
+    const randomColumn = validColumns[Math.floor(Math.random() * validColumns.length)];
+    handleCellClick(randomColumn);
+}
+
 /**
  * Quand l'IA aura calcule son coup, appeler cette fonction
  * avec la colonne choisie.
