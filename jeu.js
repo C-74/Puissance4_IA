@@ -15,7 +15,7 @@ let currentPlayer = PLAYER1;
 let gameOver = false;
 let moveHistory = [];     // { row, col, player } pour l'undo
 let scores = { player: 0, ai: 0, draw: 0 };
-
+let pionsjoues = 0; // Compterus pour le nombre de pions joués
 // ============================================================
 // INITIALISATION
 // ============================================================
@@ -88,6 +88,13 @@ function updateScores() {
     document.getElementById("draw-score").textContent = scores.draw;
 }
 
+function updateStats() {
+    document.getElementById("pions-joues").textContent = pionsjoues;
+    if (pionsjoues > 0 ){
+        document.getElementById("Changecouleur").style.display = "none";
+    }
+}
+
 // ============================================================
 // LOGIQUE DU JEU
 // ============================================================
@@ -108,6 +115,8 @@ function makeMove(col, player) {
     if (row === -1) return false; // Colonne pleine
     board[row][col] = player;
     moveHistory.push({ row, col, player });
+    pionsjoues++;
+    updateStats();
     return true;
 }
 
@@ -138,6 +147,7 @@ function undoMove() {
     currentPlayer = lastMove.player;
     updateBoardDisplay();
     updateTurnIndicator();
+    updateStats();
 }
 
 // ============================================================
@@ -223,12 +233,15 @@ function endGame(result) {
  * TODO
  */
 function resetGame() {
+    document.getElementById("Changecouleur").style.display = "block";
     initBoard();
     currentPlayer = PLAYER1;
     gameOver = false;
     moveHistory = [];
+    pionsjoues = 0;
     updateBoardDisplay();
     updateTurnIndicator();
+    updateStats();
 }
 
 /**
@@ -274,5 +287,6 @@ window.onload = function () {
     initBoard();
     createBoardHTML();
     updateScores();
+    updateStats();
     updateTurnIndicator();
 };
