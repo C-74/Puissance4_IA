@@ -145,6 +145,7 @@ function undoMove() {
     const lastMove = moveHistory.pop();
     board[lastMove.row][lastMove.col] = EMPTY;
     currentPlayer = lastMove.player;
+    pionsjoues--;
     updateBoardDisplay();
     updateTurnIndicator();
     updateStats();
