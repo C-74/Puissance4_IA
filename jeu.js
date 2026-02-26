@@ -20,10 +20,7 @@ let scores = { player: 0, ai: 0, draw: 0 };
 // INITIALISATION
 // ============================================================
 
-/**
- * Remplit `board` avec des zeros (EMPTY) sur 6 lignes x 7 colonnes.
- * TODO
- */
+// Initialise le tableau `board` a un tableau 2D rempli de EMPTY (0).
 function initBoard() {
     let newBoard = [];
     for (let i = 0; i < ROWS; i++) {
@@ -36,14 +33,7 @@ function initBoard() {
     board = newBoard;
 }
 
-/**
- * Genere les div.cell dans #board (6 lignes x 7 colonnes).
- * Chaque cellule doit :
- *   - avoir la classe "cell"
- *   - stocker data-row et data-col
- *   - ecouter le clic -> handleCellClick(col)
- * TODO
- */
+// Génération des cellules avec un listener pour detecter les clics
 function createBoardHTML() {
     const boardDiv = document.getElementById("board");
     boardDiv.innerHTML = ""; // Clear any existing cells
@@ -64,11 +54,7 @@ function createBoardHTML() {
 // INTERFACE
 // ============================================================
 
-/**
- * Parcourt toutes les cellules et leur applique la bonne classe
- * ("red", "yellow", ou aucune) selon l'etat du tableau `board`.
- * TODO
- */
+// Syncronise l'affichage du plateau avec le tableau `board`.
 function updateBoardDisplay() {
     const cells = document.querySelectorAll(".cell");
     cells.forEach(cell => {
@@ -83,11 +69,7 @@ function updateBoardDisplay() {
     });
 }
 
-/**
- * Met a jour le texte et la classe de #turn-indicator
- * selon la valeur de `currentPlayer`.
- * TODO
- */
+// Mise a jour du texte et du style de l'indicateur de tour
 function updateTurnIndicator() {
     const indicator = document.getElementById("turn-indicator");
     if (currentPlayer === PLAYER1) {
@@ -99,10 +81,7 @@ function updateTurnIndicator() {
     }
 }
 
-/**
- * Met a jour les compteurs #player-score, #ai-score, #draw-score.
- * TODO
- */
+// Mise a jour des scores
 function updateScores() {
     document.getElementById("player-score").textContent = scores.player;
     document.getElementById("ai-score").textContent = scores.ai;
@@ -113,11 +92,7 @@ function updateScores() {
 // LOGIQUE DU JEU
 // ============================================================
 
-/**
- * Cherche la premiere ligne libre (depuis le bas) dans la colonne `col`.
- * Retourne l'index de ligne, ou -1 si la colonne est pleine.
- * TODO
- */
+// Retourne la ligne la plus basse disponible dans `col`, ou -1 si la colonne est pleine.
 function getEmptyRow(col) {
     for (let row = ROWS - 1; row >= 0; row--) {
         if (board[row][col] === EMPTY) {
@@ -127,14 +102,7 @@ function getEmptyRow(col) {
     return -1; // Colonne pleine
 }
 
-/**
- * Pose un jeton pour `player` dans `col` :
- *   - Trouve la ligne via getEmptyRow
- *   - Met a jour board[row][col]
- *   - Pousse { row, col, player } dans moveHistory
- *   - Retourne true si OK, false si colonne pleine
- * TODO
- */
+// Place un jeton pour `player` dans la colonne `col` si possible.
 function makeMove(col, player) {
     const row = getEmptyRow(col);
     if (row === -1) return false; // Colonne pleine
@@ -143,25 +111,16 @@ function makeMove(col, player) {
     return true;
 }
 
-/**
- * Appele au clic sur une colonne.
- * Doit :
- *   1. Ignorer si gameOver ou pas le tour de PLAYER1
- *   2. Appeler makeMove + updateBoardDisplay
- *   3. Verifier victoire (checkWin) et egalite (isBoardFull)
- *   4. Passer la main a PLAYER2 / l'IA
- *
- * Pour l'instant mode 1v1 : passe directement a PLAYER2
- * Plus tard : brancher l'IA ici (voir section IA en bas)
- * TODO
- */
+// Gere le clic sur une colonne : tente de jouer, puis verifie victoire ou match nul, et change de joueur.
 function handleCellClick(col) {
+    // Si la partie est finie, ne rien faire
     if (gameOver) return;
     const player = currentPlayer;
+    // Si le coup est valide, mettre a jour l'affichage et verifier la fin de partie
     if (makeMove(col, player)) {
         updateBoardDisplay();
         if (checkWin(player)) {
-            endGame(player === PLAYER1 ? "player" : "ai");
+            setTimeout(() => endGame(player === PLAYER1 ? "player" : "ai"), 400);
         } else if (isBoardFull()) {
             endGame("draw");
         } else {
@@ -171,26 +130,12 @@ function handleCellClick(col) {
     }
 }
 
-/**
- * Annule le dernier coup joue.
- * Si le dernier coup etait celui de PLAYER2 (IA), annuler aussi
- * le coup precedent (celui de PLAYER1) pour revenir a son tour.
- * TODO
- */
+// Permet de revenir en arriere sur le dernier coup joue (pour le joueur humain uniquement).
 function undoMove() {
     if (moveHistory.length === 0 || gameOver) return;
     const lastMove = moveHistory.pop();
     board[lastMove.row][lastMove.col] = EMPTY;
-    
-    // Si le dernier coup etait de l'IA, annuler aussi le coup du joueur
-    if (lastMove.player === PLAYER2 && moveHistory.length > 0) {
-        const playerMove = moveHistory.pop();
-        board[playerMove.row][playerMove.col] = EMPTY;
-        currentPlayer = PLAYER1; // Revenir au tour du joueur
-    } else {
-        currentPlayer = lastMove.player; // Revenir au tour du joueur
-    }
-    
+    currentPlayer = lastMove.player;
     updateBoardDisplay();
     updateTurnIndicator();
 }
@@ -199,52 +144,29 @@ function undoMove() {
 // VERIFICATION DE VICTOIRE
 // ============================================================
 
-/**
- * Retourne true si `player` a 4 jetons alignes.
- * Directions a verifier : horizontale, verticale, diag. desc., diag. mont.
- * TODO
- */
+// Vérifie si `player` a gagné.
+// Si oui, surligne les 4 cellules gagnantes et retourne true.
 function checkWin(player) {
-    // Verifier horizontal
-    for (let row = 0; row < ROWS; row++) {
-        for (let col = 0; col <= COLS - 4; col++) {
-            if (board[row][col] === player &&
-                board[row][col + 1] === player &&
-                board[row][col + 2] === player &&
-                board[row][col + 3] === player) {
-                return true;
-            }
-        }
-    }
-    // Verifier vertical
-    for (let col = 0; col < COLS; col++) {
-        for (let row = 0; row <= ROWS - 4; row++) {
-            if (board[row][col] === player &&
-                board[row + 1][col] === player &&
-                board[row + 2][col] === player &&
-                board[row + 3][col] === player) {
-                return true;
-            }
-        }
-    }
-    // Verifier diag. descendante
-    for (let row = 0; row <= ROWS - 4; row++) {
-        for (let col = 0; col <= COLS - 4; col++) {
-            if (board[row][col] === player &&
-                board[row + 1][col + 1] === player &&
-                board[row + 2][col + 2] === player &&
-                board[row + 3][col + 3] === player) {
-                return true;
-            }
-        }
-    }
-    // Verifier diag. montante
-    for (let row = 3; row < ROWS; row++) {
-        for (let col = 0; col <= COLS - 4; col++) {
-            if (board[row][col] === player &&
-                board[row - 1][col + 1] === player &&
-                board[row - 2][col + 2] === player &&
-                board[row - 3][col + 3] === player) {
+    const directions = [
+        (r, c, i) => [r,     c + i], // horizontal
+        (r, c, i) => [r + i, c    ], // vertical
+        (r, c, i) => [r + i, c + i], // diag. descendante
+        (r, c, i) => [r - i, c + i], // diag. montante
+    ];
+    const starts = [
+        () => { const s = []; for (let r = 0; r < ROWS; r++)     for (let c = 0; c <= COLS-4; c++) s.push([r,c]); return s; },
+        () => { const s = []; for (let c = 0; c < COLS; c++)     for (let r = 0; r <= ROWS-4; r++) s.push([r,c]); return s; },
+        () => { const s = []; for (let r = 0; r <= ROWS-4; r++)  for (let c = 0; c <= COLS-4; c++) s.push([r,c]); return s; },
+        () => { const s = []; for (let r = 3; r < ROWS; r++)     for (let c = 0; c <= COLS-4; c++) s.push([r,c]); return s; },
+    ];
+
+    for (let d = 0; d < 4; d++) {
+        for (const [r, c] of starts[d]()) {
+            const cells = [0,1,2,3].map(i => directions[d](r, c, i));
+            if (cells.every(([row, col]) => board[row][col] === player)) {
+                cells.forEach(([row, col]) =>
+                    document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`).classList.add("winning")
+                );
                 return true;
             }
         }
@@ -252,75 +174,7 @@ function checkWin(player) {
     return false;
 }
 
-/**
- * Ajoute la classe "winning" sur les 4 cellules gagnantes.
- * Meme logique que checkWin, mais on cible les elements DOM.
- * TODO
- */
-function highlightWinningCells(player) {
-    // Verifier horizontal
-    for (let row = 0; row < ROWS; row++) {
-        for (let col = 0; col <= COLS - 4; col++) {
-            if (board[row][col] === player &&
-                board[row][col + 1] === player &&
-                board[row][col + 2] === player &&
-                board[row][col + 3] === player) {
-                for (let i = 0; i < 4; i++) {
-                    document.querySelector(`.cell[data-row="${row}"][data-col="${col + i}"]`).classList.add("winning");
-                }
-                return;
-            }
-        }
-    }
-    // Verifier vertical
-    for (let col = 0; col < COLS; col++) {
-        for (let row = 0; row <= ROWS - 4; row++) {
-            if (board[row][col] === player &&
-                board[row + 1][col] === player &&
-                board[row + 2][col] === player &&
-                board[row + 3][col] === player) {
-                for (let i = 0; i < 4; i++) {
-                    document.querySelector(`.cell[data-row="${row + i}"][data-col="${col}"]`).classList.add("winning");
-                }
-                return;
-            }
-        }
-    }
-    // Verifier diag. descendante
-    for (let row = 0; row <= ROWS - 4; row++) {
-        for (let col = 0; col <= COLS - 4; col++) {
-            if (board[row][col] === player &&
-                board[row + 1][col + 1] === player &&
-                board[row + 2][col + 2] === player &&
-                board[row + 3][col + 3] === player) {
-                for (let i = 0; i < 4; i++) {
-                    document.querySelector(`.cell[data-row="${row + i}"][data-col="${col + i}"]`).classList.add("winning");
-                }
-                return;
-            }
-        }
-    }
-    // Verifier diag. montante
-    for (let row = 3; row < ROWS; row++) {
-        for (let col = 0; col <= COLS - 4; col++) {
-            if (board[row][col] === player &&
-                board[row - 1][col + 1] === player &&
-                board[row - 2][col + 2] === player &&
-                board[row - 3][col + 3] === player) {
-                for (let i = 0; i < 4; i++) {
-                    document.querySelector(`.cell[data-row="${row - i}"][data-col="${col + i}"]`).classList.add("winning");
-                }
-                return;
-            }
-        }
-    }
-    return false;
-}
-
-/**
- * Retourne true si la 1re ligne est entierement remplie (board plein).
- * TODO
- */
+// Vérifie si le plateau est plein (match nul).
 function isBoardFull() {
     for (let col = 0; col < COLS; col++) {
         if (board[0][col] === EMPTY) {
