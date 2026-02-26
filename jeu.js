@@ -92,6 +92,7 @@ function updateStats() {
     document.getElementById("pions-joues").textContent = pionsjoues;
     if (pionsjoues > 0 ){
         document.getElementById("Changecouleur").style.display = "none";
+        document.getElementById("undoMove").style.display = "block";
     }
 }
 
