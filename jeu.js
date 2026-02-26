@@ -15,7 +15,7 @@ let currentPlayer = PLAYER1;
 let gameOver = false;
 let moveHistory = [];     // { row, col, player } pour l'undo
 let scores = { player: 0, ai: 0, draw: 0 };
-
+let pionsjoues = 0; // Compterus pour le nombre de pions joués
 // ============================================================
 // INITIALISATION
 // ============================================================
@@ -109,6 +109,13 @@ function updateScores() {
     document.getElementById("draw-score").textContent = scores.draw;
 }
 
+function updateStats() {
+    document.getElementById("pions-joues").textContent = pionsjoues;
+    if (pionsjoues > 0 ){
+        document.getElementById("Changecouleur").style.display = "none";
+    }
+}
+
 // ============================================================
 // LOGIQUE DU JEU
 // ============================================================
@@ -140,6 +147,8 @@ function makeMove(col, player) {
     if (row === -1) return false; // Colonne pleine
     board[row][col] = player;
     moveHistory.push({ row, col, player });
+    pionsjoues++;
+    updateStats();
     return true;
 }
 
@@ -155,6 +164,16 @@ function makeMove(col, player) {
  * Plus tard : brancher l'IA ici (voir section IA en bas)
  * TODO
  */
+function changeColor() {
+    if (currentPlayer === PLAYER1) {
+        currentPlayer = PLAYER2;
+    } else {                        // change la couleur du joueur
+        currentPlayer = PLAYER1;
+    }
+    updateTurnIndicator();
+}
+
+
 function handleCellClick(col) {
     if (gameOver) return;
     const player = currentPlayer;
@@ -190,9 +209,10 @@ function undoMove() {
     } else {
         currentPlayer = lastMove.player; // Revenir au tour du joueur
     }
-    
+    pionsjoues--;  // désincrémente le compteur 
     updateBoardDisplay();
     updateTurnIndicator();
+    updateStats();
 }
 
 // ============================================================
@@ -369,12 +389,15 @@ function endGame(result) {
  * TODO
  */
 function resetGame() {
+    document.getElementById("Changecouleur").style.display = "block";
     initBoard();
     currentPlayer = PLAYER1;
     gameOver = false;
     moveHistory = [];
+    pionsjoues = 0;
     updateBoardDisplay();
     updateTurnIndicator();
+    updateStats();
 }
 
 /**
@@ -420,5 +443,6 @@ window.onload = function () {
     initBoard();
     createBoardHTML();
     updateScores();
+    updateStats();
     updateTurnIndicator();
 };

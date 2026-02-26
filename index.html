@@ -113,6 +113,7 @@
 
     <div class="controls">
         <button onclick="resetGame()">Nouvelle partie</button>
+        <button onclick="changeColor()" id="Changecouleur">Changer la couleur</button>
         <button onclick="undoMove()">Annuler</button>
     </div>
 
@@ -128,6 +129,12 @@
         <div class="score-box">
             <div>Joueur 2 / IA</div>
             <span id="ai-score">0</span>
+        </div>
+    </div>
+    <div id="stats">
+        <div id="pions-stats">
+            <h1>Pions joues</h1>
+            <span id="pions-joues">0</span>
         </div>
     </div>
 
