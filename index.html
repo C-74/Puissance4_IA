@@ -79,6 +79,12 @@
         .score-box { text-align: center; }
         .score-box span { font-size: 1.8rem; font-weight: bold; }
 
+        
+        #pions-stats {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
         /* --- Modal fin de partie --- */
         #game-modal {
             display: none;
@@ -104,7 +110,12 @@
 <body>
 
     <h1>Puissance 4</h1>
-
+    <div id="stats">
+        <div id="pions-stats">
+            <h2>Tour</h2>
+            <h2 id="pions-joues">0</h2>
+        </div>
+    </div>
     <div id="turn-indicator">Tour du Joueur 1</div>
 
     <div id="game-board">
@@ -130,12 +141,6 @@
         <div class="score-box">
             <div>Joueur 2 / IA</div>
             <span id="ai-score">0</span>
-        </div>
-    </div>
-    <div id="stats">
-        <div id="pions-stats">
-            <h1>Pions joues</h1>
-            <span id="pions-joues">0</span>
         </div>
     </div>
 

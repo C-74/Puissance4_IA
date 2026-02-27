@@ -88,12 +88,23 @@ function updateScores() {
     document.getElementById("draw-score").textContent = scores.draw;
 }
 
+// Mise a jour des stats
 function updateStats() {
     document.getElementById("pions-joues").textContent = pionsjoues;
     if (pionsjoues > 0 ){
         document.getElementById("Changecouleur").style.display = "none";
         document.getElementById("undoMove").style.display = "block";
     }
+}
+
+// Permet de changer la couleur du joueur au début de la partie, avant que les pions soient joués.
+function changeColor() {
+    if (currentPlayer === PLAYER1) {
+        currentPlayer = PLAYER2;
+    } else {
+        currentPlayer = PLAYER1;
+    }
+    updateTurnIndicator();
 }
 
 // ============================================================
@@ -108,6 +119,16 @@ function getEmptyRow(col) {
         }
     }
     return -1; // Colonne pleine
+}
+
+// Permet au joueur de choisir aléatoirement
+function RandomMove() {
+    if (gameOver) return;
+    const validColumns = getValidColumns();
+    if (validColumns.length === 0) return;
+    
+    const randomColumn = validColumns[Math.floor(Math.random() * validColumns.length)];
+    handleCellClick(randomColumn);
 }
 
 // Place un jeton pour `player` dans la colonne `col` si possible.
@@ -271,15 +292,6 @@ function getValidColumns() {
         if (getEmptyRow(col) !== -1) cols.push(col);
     }
     return cols;
-}
-
-function RandomMove() {
-    if (gameOver) return;
-    const validColumns = getValidColumns();
-    if (validColumns.length === 0) return;
-    
-    const randomColumn = validColumns[Math.floor(Math.random() * validColumns.length)];
-    handleCellClick(randomColumn);
 }
 
 /**
