@@ -277,15 +277,61 @@ function closeModalAndReset() {
 }
 
 // ============================================================
-// API POUR L'IA  (a brancher dans handleCellClick plus tard)
+// IA - MINIMAX
 // ============================================================
 
-/** Retourne une copie du plateau courant (0=vide, 1=J1, 2=J2). */
+// Vérifie une victoire sur un plateau donné SANS toucher au DOM
+function checkWinPure(b, player) {
+    const directions = [
+        (r, c, i) => [r,     c + i],
+        (r, c, i) => [r + i, c    ],
+        (r, c, i) => [r + i, c + i],
+        (r, c, i) => [r - i, c + i],
+    ];
+    const starts = [
+        () => { const s = []; for (let r = 0; r < ROWS; r++)    for (let c = 0; c <= COLS-4; c++) s.push([r,c]); return s; },
+        () => { const s = []; for (let c = 0; c < COLS; c++)    for (let r = 0; r <= ROWS-4; r++) s.push([r,c]); return s; },
+        () => { const s = []; for (let r = 0; r <= ROWS-4; r++) for (let c = 0; c <= COLS-4; c++) s.push([r,c]); return s; },
+        () => { const s = []; for (let r = 3; r < ROWS; r++)    for (let c = 0; c <= COLS-4; c++) s.push([r,c]); return s; },
+    ];
+
+    for (let d = 0; d < 4; d++) {
+        for (const [r, c] of starts[d]()) {
+            const cells = [0,1,2,3].map(i => directions[d](r, c, i));
+            if (cells.every(([row, col]) => b[row][col] === player)) return true;
+        }
+    }
+    return false;
+}
+
+// Évalue le plateau et retourne un score
+function minimax(b, depth, isMaximizing) {
+    // TODO :
+    // 1. Vérifier les cas terminaux (victoire, défaite, nul, profondeur 0)
+    // 2. Si isMaximizing : parcourir les colonnes, jouer, appeler minimax récursivement, annuler
+    // 3. Sinon : pareil mais minimiser
+    // 4. Retourner le meilleur score
+}
+
+// Trouve la meilleure colonne pour l'IA selon la profondeur choisie
+function bestMove(depth) {
+    // TODO :
+    // Parcourir chaque colonne valide
+    // Appeler minimax pour chacune
+    // Retourner la colonne avec le meilleur score
+}
+
+function playAIMove(col) {
+    // TODO : appeler handleCellClick(col) ou makeMove() + vérifications
+}
+
+
+// Retourne une copie du plateau courant (0=vide, 1=J1, 2=J2).
 function getBoard() {
     return board.map(row => [...row]);
 }
 
-/** Retourne la liste des colonnes encore jouables. */
+// Retourne la liste des colonnes encore jouables.
 function getValidColumns() {
     const cols = [];
     for (let col = 0; col < COLS; col++) {
