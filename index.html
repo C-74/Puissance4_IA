@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
@@ -61,18 +61,26 @@
             to   { transform: translateY(0);      opacity: 1; }
         }
 
+        .cell.possible-move {
+            box-shadow: inset 0 0 15px rgba(255, 255, 255, 0.4);
+        }
+
         /* --- Controles --- */
-        .controls { display: flex; gap: 12px; }
-        button {
-            padding: 10px 24px;
+        .controls { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+        button, select {
+            padding: 10px 16px;
             border: none;
             border-radius: 8px;
             font-weight: bold;
             cursor: pointer;
             background: #374151;
             color: white;
+            font-size: 1rem;
         }
-        button:hover { background: #4b5563; }
+        button:hover, select:hover { background: #4b5563; }
+        
+        button.has-save { background: #16a34a; }
+        button.has-save:hover { background: #15803d; }
 
         /* --- Scores --- */
         #scores { display: flex; gap: 40px; }
@@ -123,6 +131,24 @@
     </div>
 
     <div class="controls">
+        <select id="opponent-type" onchange="resetGame()">
+            <option value="humain">Joueur vs Joueur</option>
+            <option value="ia">Joueur vs IA</option>
+        </select>
+        <select id="ai-algo">
+            <option value="minimax">Algorithme: MinMax</option>
+            <option value="alphabeta">Algorithme: AlphaBeta</option>
+        </select>
+        <select id="ai-difficulty">
+            <option value="1">Niveau: Facile</option>
+            <option value="2">Niveau: Moyen</option>
+            <option value="3">Niveau: Difficile</option>
+            <option value="4">Niveau: Expert</option>
+        </select>
+        <button onclick="saveGame()">Sauvegarder</button>
+        <button id="btn-load-game" onclick="loadGame()">Charger</button>
+    </div>
+    <div class="controls" style="margin-top: 12px; margin-bottom: 24px;">
         <button onclick="resetGame()">Nouvelle partie</button>
         <button onclick="changeColor()" id="Changecouleur">Changer la couleur</button>
         <button onclick="undoMove()"style="display: none;" id="undoMove">Annuler</button> <!-- ne s'affiche pas au debut -->

@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // CONFIGURATION
 // ============================================================
 const ROWS = 6;
@@ -16,6 +16,57 @@ let gameOver = false;
 let moveHistory = [];     // { row, col, player } pour l'undo
 let scores = { player: 0, ai: 0, draw: 0 };
 let pionsjoues = 0; // Compterus pour le nombre de pions joués
+let aiThinking = false;
+
+// ============================================================
+// SAUVEGARDE ET CHARGEMENT
+// ============================================================
+function updateLoadButtonState() {
+    const btnLoad = document.getElementById("btn-load-game");
+    if (!btnLoad) return;
+    if (localStorage.getItem("puissance4_save")) {
+        btnLoad.classList.add("has-save");
+        btnLoad.textContent = "Charger (Dispo)";
+    } else {
+        btnLoad.classList.remove("has-save");
+        btnLoad.textContent = "Charger";
+    }
+}
+
+function saveGame() {
+    const gameState = {
+        board, currentPlayer, gameOver, moveHistory, scores, pionsjoues
+    };
+    localStorage.setItem("puissance4_save", JSON.stringify(gameState));
+    updateLoadButtonState();
+    alert("Partie sauvegardée !");
+}
+
+function loadGame() {
+    const saved = localStorage.getItem("puissance4_save");
+    if (saved) {
+        const gameState = JSON.parse(saved);
+        board = gameState.board;
+        currentPlayer = gameState.currentPlayer;
+        gameOver = gameState.gameOver;
+        moveHistory = gameState.moveHistory;
+        scores = gameState.scores;
+        pionsjoues = gameState.pionsjoues;
+        updateBoardDisplay();
+        updateTurnIndicator();
+        updateScores();
+        updateStats();
+        
+        const opponentType = document.getElementById("opponent-type") ? document.getElementById("opponent-type").value : "humain";
+        if (opponentType === "ia" && currentPlayer === PLAYER2 && !gameOver) {
+            triggerAI();
+        }
+        alert("Partie chargée !");
+    } else {
+        alert("Aucune sauvegarde trouvée.");
+    }
+}
+
 // ============================================================
 // INITIALISATION
 // ============================================================
@@ -54,6 +105,21 @@ function createBoardHTML() {
 // INTERFACE
 // ============================================================
 
+function updatePossibleMovesDisplay() {
+    document.querySelectorAll('.cell.possible-move').forEach(c => c.classList.remove('possible-move'));
+    if (gameOver || aiThinking) return;
+    const opponentType = document.getElementById("opponent-type") ? document.getElementById("opponent-type").value : "humain";
+    if (opponentType === "ia" && currentPlayer === PLAYER2) return; 
+
+    for (let c = 0; c < COLS; c++) {
+        let r = getEmptyRow(c);
+        if (r !== -1) {
+            const cell = document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+            if (cell) cell.classList.add('possible-move');
+        }
+    }
+}
+
 // Syncronise l'affichage du plateau avec le tableau `board`.
 function updateBoardDisplay() {
     const cells = document.querySelectorAll(".cell");
@@ -67,6 +133,7 @@ function updateBoardDisplay() {
             cell.classList.add("yellow");
         }
     });
+    updatePossibleMovesDisplay();
 }
 
 // Mise a jour du texte et du style de l'indicateur de tour
@@ -76,7 +143,7 @@ function updateTurnIndicator() {
         indicator.textContent = "Tour du Joueur 1 (Rouge)";
         indicator.classList.remove("player2");
     } else {
-        indicator.textContent = "Tour du Joueur 2 (Jaune)";
+        indicator.textContent = aiThinking ? "Tour du Joueur 2 (Jaune) - Réflexion..." : "Tour du Joueur 2 (Jaune)";
         indicator.classList.add("player2");
     }
 }
@@ -143,11 +210,12 @@ function makeMove(col, player) {
 }
 
 // Gere le clic sur une colonne : tente de jouer, puis verifie victoire ou match nul, et change de joueur.
-function handleCellClick(col) {
-    // Si la partie est finie, ne rien faire
-    if (gameOver) return;
+function handleCellClick(col, fromAI = false) {
+    if (gameOver || aiThinking) return;
+    const opponentType = document.getElementById("opponent-type") ? document.getElementById("opponent-type").value : "humain";
+    if (opponentType === "ia" && currentPlayer === PLAYER2 && !fromAI) return;
+    
     const player = currentPlayer;
-    // Si le coup est valide, mettre a jour l'affichage et verifier la fin de partie
     if (makeMove(col, player)) {
         updateBoardDisplay();
         if (checkWin(player)) {
@@ -157,13 +225,18 @@ function handleCellClick(col) {
         } else {
             currentPlayer = (player === PLAYER1) ? PLAYER2 : PLAYER1;
             updateTurnIndicator();
+            updatePossibleMovesDisplay();
+            
+            if (opponentType === "ia" && currentPlayer === PLAYER2) {
+                triggerAI();
+            }
         }
     }
 }
 
 // Permet de revenir en arriere sur le dernier coup joue (pour le joueur humain uniquement).
 function undoMove() {
-    if (moveHistory.length === 0 || gameOver) return;
+    if (moveHistory.length === 0 || gameOver || aiThinking) return;
     const lastMove = moveHistory.pop();
     board[lastMove.row][lastMove.col] = EMPTY;
     currentPlayer = lastMove.player;
@@ -171,6 +244,7 @@ function undoMove() {
     updateBoardDisplay();
     updateTurnIndicator();
     updateStats();
+    updatePossibleMovesDisplay();
 }
 
 // ============================================================
@@ -262,9 +336,15 @@ function resetGame() {
     gameOver = false;
     moveHistory = [];
     pionsjoues = 0;
+    aiThinking = false;
     updateBoardDisplay();
     updateTurnIndicator();
     updateStats();
+    
+    const opponentType = document.getElementById("opponent-type") ? document.getElementById("opponent-type").value : "humain";
+    if (opponentType === "ia" && currentPlayer === PLAYER2) {
+        triggerAI();
+    }
 }
 
 /**
@@ -304,27 +384,218 @@ function checkWinPure(b, player) {
     return false;
 }
 
-// Évalue le plateau et retourne un score
+// ============================================================
+// IA - MINIMAX & ALPHABETA
+// ============================================================
+
+function evaluateWindow(window, player) {
+    let score = 0;
+    const opp = player === PLAYER1 ? PLAYER2 : PLAYER1;
+    let countPlayer = 0;
+    let countOpp = 0;
+    let countEmpty = 0;
+
+    for (let i = 0; i < 4; i++) {
+        if (window[i] === player) countPlayer++;
+        else if (window[i] === opp) countOpp++;
+        else countEmpty++;
+    }
+
+    if (countPlayer === 4) score += 1000;
+    else if (countPlayer === 3 && countEmpty === 1) score += 5;
+    else if (countPlayer === 2 && countEmpty === 2) score += 2;
+
+    if (countOpp === 4) score -= 1000;
+    else if (countOpp === 3 && countEmpty === 1) score -= 50; 
+    else if (countOpp === 2 && countEmpty === 2) score -= 4; 
+
+    return score;
+}
+
+function evaluateBoard(b, player) {
+    let score = 0;
+    let centerCount = 0;
+    for (let r = 0; r < ROWS; r++) {
+        if (b[r][3] === player) centerCount++;
+    }
+    score += centerCount * 3;
+
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS - 3; c++) {
+            score += evaluateWindow([b[r][c], b[r][c+1], b[r][c+2], b[r][c+3]], player);
+        }
+    }
+    for (let c = 0; c < COLS; c++) {
+        for (let r = 0; r < ROWS - 3; r++) {
+            score += evaluateWindow([b[r][c], b[r+1][c], b[r+2][c], b[r+3][c]], player);
+        }
+    }
+    for (let r = 0; r < ROWS - 3; r++) {
+        for (let c = 0; c < COLS - 3; c++) {
+            score += evaluateWindow([b[r][c], b[r+1][c+1], b[r+2][c+2], b[r+3][c+3]], player);
+        }
+    }
+    for (let r = 0; r < ROWS - 3; r++) {
+        for (let c = 0; c < COLS - 3; c++) {
+            score += evaluateWindow([b[r+3][c], b[r+2][c+1], b[r+1][c+2], b[r][c+3]], player);
+        }
+    }
+    return score;
+}
+
+function isTerminalNode(b) {
+    return checkWinPure(b, PLAYER1) || checkWinPure(b, PLAYER2) || getValidColumnsBoard(b).length === 0;
+}
+
+function getValidColumnsBoard(b) {
+    const valid = [];
+    for (let c = 0; c < COLS; c++) {
+        if (b[0][c] === EMPTY) valid.push(c);
+    }
+    return valid;
+}
+
+function getNextOpenRow(b, c) {
+    for (let r = ROWS - 1; r >= 0; r--) {
+        if (b[r][c] === EMPTY) return r;
+    }
+    return -1;
+}
+
 function minimax(b, depth, isMaximizing) {
-    // TODO :
-    // 1. Vérifier les cas terminaux (victoire, défaite, nul, profondeur 0)
-    // 2. Si isMaximizing : parcourir les colonnes, jouer, appeler minimax récursivement, annuler
-    // 3. Sinon : pareil mais minimiser
-    // 4. Retourner le meilleur score
+    const isTerminal = isTerminalNode(b);
+    if (depth === 0 || isTerminal) {
+        if (isTerminal) {
+            if (checkWinPure(b, PLAYER2)) return 10000000 - (10 - depth);
+            else if (checkWinPure(b, PLAYER1)) return -10000000 + (10 - depth);
+            else return 0;
+        } else {
+            return evaluateBoard(b, PLAYER2);
+        }
+    }
+
+    const validCols = getValidColumnsBoard(b);
+    if (isMaximizing) {
+        let value = -Infinity;
+        for (const col of validCols) {
+            const row = getNextOpenRow(b, col);
+            let bCopy = b.map(r => [...r]);
+            bCopy[row][col] = PLAYER2;
+            const newScore = minimax(bCopy, depth - 1, false);
+            if (newScore > value) value = newScore;
+        }
+        return value;
+    } else {
+        let value = Infinity;
+        for (const col of validCols) {
+            const row = getNextOpenRow(b, col);
+            let bCopy = b.map(r => [...r]);
+            bCopy[row][col] = PLAYER1;
+            const newScore = minimax(bCopy, depth - 1, true);
+            if (newScore < value) value = newScore;
+        }
+        return value;
+    }
 }
 
-// Trouve la meilleure colonne pour l'IA selon la profondeur choisie
+function alphabeta(b, depth, alpha, beta, isMaximizing) {
+    const isTerminal = isTerminalNode(b);
+    if (depth === 0 || isTerminal) {
+        if (isTerminal) {
+            if (checkWinPure(b, PLAYER2)) return 10000000 - (10 - depth);
+            else if (checkWinPure(b, PLAYER1)) return -10000000 + (10 - depth);
+            else return 0;
+        } else {
+            return evaluateBoard(b, PLAYER2);
+        }
+    }
+
+    const validCols = getValidColumnsBoard(b);
+    const centerPreference = [3, 2, 4, 1, 5, 0, 6];
+    validCols.sort((a, b) => centerPreference.indexOf(a) - centerPreference.indexOf(b));
+
+    if (isMaximizing) {
+        let value = -Infinity;
+        for (const col of validCols) {
+            const row = getNextOpenRow(b, col);
+            let bCopy = b.map(r => [...r]);
+            bCopy[row][col] = PLAYER2;
+            const newScore = alphabeta(bCopy, depth - 1, alpha, beta, false);
+            if (newScore > value) value = newScore;
+            alpha = Math.max(alpha, value);
+            if (alpha >= beta) break;
+        }
+        return value;
+    } else {
+        let value = Infinity;
+        for (const col of validCols) {
+            const row = getNextOpenRow(b, col);
+            let bCopy = b.map(r => [...r]);
+            bCopy[row][col] = PLAYER1;
+            const newScore = alphabeta(bCopy, depth - 1, alpha, beta, true);
+            if (newScore < value) value = newScore;
+            beta = Math.min(beta, value);
+            if (alpha >= beta) break;
+        }
+        return value;
+    }
+}
+
 function bestMove(depth) {
-    // TODO :
-    // Parcourir chaque colonne valide
-    // Appeler minimax pour chacune
-    // Retourner la colonne avec le meilleur score
+    const validCols = getValidColumnsBoard(board);
+    if (validCols.length === 0) return -1;
+
+    const algo = document.getElementById("ai-algo") ? document.getElementById("ai-algo").value : "minimax";
+    let bestScore = -Infinity;
+    
+    const centerPreference = [3, 2, 4, 1, 5, 0, 6];
+    validCols.sort((a, b) => centerPreference.indexOf(a) - centerPreference.indexOf(b));
+    let bestCol = validCols[0];
+    
+    for (const col of validCols) {
+        const row = getNextOpenRow(board, col);
+        let bCopy = board.map(r => [...r]);
+        bCopy[row][col] = PLAYER2;
+        
+        let score;
+        if (algo === "alphabeta") {
+            score = alphabeta(bCopy, depth - 1, -Infinity, Infinity, false);
+        } else {
+            score = minimax(bCopy, depth - 1, false);
+        }
+        
+        if (score > bestScore) {
+            bestScore = score;
+            bestCol = col;
+        }
+    }
+    return bestCol;
 }
 
-function playAIMove(col) {
-    // TODO : appeler handleCellClick(col) ou makeMove() + vérifications
-}
+function triggerAI() {
+    if (gameOver || currentPlayer !== PLAYER2) return;
+    const opponentType = document.getElementById("opponent-type") ? document.getElementById("opponent-type").value : "humain";
+    if (opponentType !== "ia") return;
 
+    aiThinking = true;
+    updateTurnIndicator();
+    
+    setTimeout(() => {
+        const startTime = performance.now();
+        const difficulty = parseInt(document.getElementById("ai-difficulty").value);
+        const col = bestMove(difficulty);
+        const endTime = performance.now();
+        
+        const delay = Math.max(0, 500 - (endTime - startTime));
+        
+        setTimeout(() => {
+            aiThinking = false;
+            if (col !== -1) {
+                handleCellClick(col, true);
+            }
+        }, delay);
+    }, 50);
+}
 
 // Retourne une copie du plateau courant (0=vide, 1=J1, 2=J2).
 function getBoard() {
@@ -333,20 +604,7 @@ function getBoard() {
 
 // Retourne la liste des colonnes encore jouables.
 function getValidColumns() {
-    const cols = [];
-    for (let col = 0; col < COLS; col++) {
-        if (getEmptyRow(col) !== -1) cols.push(col);
-    }
-    return cols;
-}
-
-/**
- * Quand l'IA aura calcule son coup, appeler cette fonction
- * avec la colonne choisie.
- * TODO (a completer quand l'IA sera implementee)
- */
-function playAIMove(col) {
-    // TODO
+    return getValidColumnsBoard(board);
 }
 
 // ============================================================
@@ -358,4 +616,6 @@ window.onload = function () {
     updateScores();
     updateStats();
     updateTurnIndicator();
+    updatePossibleMovesDisplay();
+    updateLoadButtonState();
 };
